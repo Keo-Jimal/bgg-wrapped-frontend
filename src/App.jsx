@@ -114,7 +114,7 @@ const App = () => {
           wishlist: status?.getAttribute('wishlist') === '1',
           wishlistPriority: parseInt(status?.getAttribute('wishlistpriority')) || 0,
           numPlays: parseInt(item.querySelector('numplays')?.textContent) || 0,
-          weight: parseFloat(stats?.querySelector('averageweight')?.textContent) || 0,
+          weight: parseFloat(rating?.querySelector('averageweight')?.textContent) || 0,
           minPlayers: parseInt(stats?.querySelector('minplayers')?.textContent) || 0,
           maxPlayers: parseInt(stats?.querySelector('maxplayers')?.textContent) || 0,
           playTime: parseInt(stats?.querySelector('playingtime')?.textContent) || 0,
@@ -464,4 +464,5 @@ const App = () => {
 };
 
 export default App;
+
 
