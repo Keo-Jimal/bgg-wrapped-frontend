@@ -54,31 +54,41 @@ const App = () => {
     }
   };
 
-  const fetchBGGData = async () => {
-    if (!username.trim()) {
-      setError('Please enter a BGG username');
-      return;
+  const fetchBGGData = async (retryCount = 0) => {
+  if (!username.trim()) {
+    setError('Please enter a BGG username');
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const collectionResponse = await fetch(
+      `https://bgg-wrapped-backend.vercel.app/api/bgg-proxy?username=${encodeURIComponent(username)}`
+    );
+    
+    if (!collectionResponse.ok) {
+      throw new Error('Failed to fetch collection data. Make sure the username is correct and the collection is public.');
     }
 
-    setLoading(true);
-    setError('');
-
-    try {
-      const collectionResponse = await fetch(
-        `https://bgg-wrapped-backend.vercel.app/api/bgg-proxy?username=${encodeURIComponent(username)}`
-      );
-      
-      if (!collectionResponse.ok) {
-        throw new Error('Failed to fetch collection data. Make sure the username is correct and the collection is public.');
+    const collectionXML = await collectionResponse.text();
+    
+    // Check if BGG is still processing
+    if (collectionXML.includes('Your request for this collection has been accepted')) {
+      if (retryCount < 4) {
+        // Auto-retry after 3 seconds
+        setTimeout(() => {
+          fetchBGGData(retryCount + 1);
+        }, 3000);
+        return; // Keep loading state
+      } else {
+        // After 4 retries (12 seconds), give up
+        throw new Error('BGG is taking longer than expected. Please try again in a minute.');
       }
+    }
 
-      const collectionXML = await collectionResponse.text();
-      
-      if (collectionXML.includes('Your request for this collection has been accepted')) {
-        setError('BGG is processing your collection. Please wait a few seconds and try again.');
-        setLoading(false);
-        return;
-      }
+    // ... rest of your existing code (parsing, etc.)
 
       const collectionDoc = parseXML(collectionXML);
       
@@ -358,3 +368,4 @@ const App = () => {
 };
 
 export default App;
+
