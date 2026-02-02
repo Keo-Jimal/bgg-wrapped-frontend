@@ -99,16 +99,11 @@ if (items.length > 0) {
   const firstItem = items[0];
   console.log('First game name:', firstItem.querySelector('name')?.textContent);
   const stats = firstItem.querySelector('stats');
-  console.log('Stats element:', stats);
+  console.log('Stats innerHTML:', stats?.innerHTML);
   const rating = stats?.querySelector('rating');
-  console.log('Rating element:', rating);
-  console.log('Rating innerHTML:', rating?.innerHTML);
-  
-  // Try different paths
-  console.log('average element:', rating?.querySelector('average'));
   console.log('average value attr:', rating?.querySelector('average')?.getAttribute('value'));
-  console.log('averageweight element:', rating?.querySelector('averageweight'));
-  console.log('averageweight value attr:', rating?.querySelector('averageweight')?.getAttribute('value'));
+  console.log('averageweight in stats:', stats?.querySelector('averageweight'));
+  console.log('averageweight value:', stats?.querySelector('averageweight')?.getAttribute('value'));
 }
       
       if (items.length === 0) {
@@ -483,6 +478,7 @@ if (items.length > 0) {
 };
 
 export default App;
+
 
 
 
