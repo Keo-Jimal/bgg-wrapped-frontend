@@ -196,6 +196,18 @@ const App = () => {
       </div>
     </div>,
 
+      // DEBUG SLIDE - Shows what data we have
+    <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-900 text-white p-8">
+      <h2 className="text-3xl font-bold mb-8">Debug Info</h2>
+      <div className="text-left space-y-2 text-sm max-w-md bg-white/10 p-4 rounded">
+        <p>avgWeight: {wrappedData.avgWeight || 'null'}</p>
+        <p>avgBGGRating: {wrappedData.avgBGGRating || 'null'}</p>
+        <p>crownJewel: {wrappedData.crownJewel?.name || 'null'}</p>
+        <p>hasRatings: {wrappedData.hasRatings ? 'true' : 'false'}</p>
+        <p>shelfOfShame: {wrappedData.shelfOfShame || 'null'}</p>
+      </div>
+    </div>,
+    
     // Personality slide
     <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 text-white p-8">
       <div className="text-8xl mb-6">{wrappedData.personality.emoji}</div>
@@ -452,3 +464,4 @@ const App = () => {
 };
 
 export default App;
+
