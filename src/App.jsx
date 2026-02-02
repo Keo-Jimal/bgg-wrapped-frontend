@@ -358,16 +358,3 @@ const App = () => {
 };
 
 export default App;
-```
-
----
-
-**Your folder structure should now look like:**
-```
-bgg-wrapped-frontend/
-  package.json
-  vite.config.js
-  index.html
-  src/
-    main.jsx
-    App.jsx
