@@ -74,16 +74,13 @@ const App = () => {
 
       const collectionXML = await collectionResponse.text();
       
-      // Check if BGG is still processing - auto-retry
       if (collectionXML.includes('Your request for this collection has been accepted')) {
         if (retryCount < 4) {
-          // Auto-retry after 3 seconds (up to 4 times = 12 seconds total)
           setTimeout(() => {
             fetchBGGData(retryCount + 1);
           }, 3000);
-          return; // Keep loading state active
+          return;
         } else {
-          // After 4 retries, give up
           throw new Error('BGG is taking longer than expected to process your collection. Please try again in a minute.');
         }
       }
@@ -106,16 +103,17 @@ const App = () => {
       const games = items.map(item => {
         const status = item.querySelector('status');
         const stats = item.querySelector('stats');
+        const rating = stats?.querySelector('rating');
         
         return {
           name: item.querySelector('name')?.textContent || 'Unknown',
           year: parseInt(item.querySelector('yearpublished')?.textContent) || 0,
           rating: parseFloat(item.querySelector('rating')?.textContent) || 0,
+          bggRating: parseFloat(rating?.querySelector('average')?.textContent) || 0,
           owned: status?.getAttribute('own') === '1',
           wishlist: status?.getAttribute('wishlist') === '1',
           wishlistPriority: parseInt(status?.getAttribute('wishlistpriority')) || 0,
           numPlays: parseInt(item.querySelector('numplays')?.textContent) || 0,
-          // Get weight from BGG's community rating (averageweight)
           weight: parseFloat(stats?.querySelector('averageweight')?.textContent) || 0,
           minPlayers: parseInt(stats?.querySelector('minplayers')?.textContent) || 0,
           maxPlayers: parseInt(stats?.querySelector('maxplayers')?.textContent) || 0,
@@ -131,8 +129,16 @@ const App = () => {
       const avgWeight = games.filter(g => g.weight > 0).reduce((sum, g) => sum + g.weight, 0) / games.filter(g => g.weight > 0).length || 0;
       const avgPlaytime = games.filter(g => g.playTime > 0).reduce((sum, g) => sum + g.playTime, 0) / games.filter(g => g.playTime > 0).length || 0;
       
+      // For non-raters: use BGG community ratings
+      const ownedWithBGGRating = ownedGames.filter(g => g.bggRating > 0);
+      const avgBGGRating = ownedWithBGGRating.reduce((sum, g) => sum + g.bggRating, 0) / ownedWithBGGRating.length || 0;
+      const crownJewel = ownedWithBGGRating.sort((a, b) => b.bggRating - a.bggRating)[0];
+      
       const comfortGame = ratedGames.find(g => g.numPlays > 3) || ratedGames[0];
       const hiddenGem = ratedGames.find(g => g.rating >= 8 && g.weight > 3.0);
+      
+      // Shelf of Shame: owned games with 0 plays
+      const shelfOfShame = ownedGames.filter(g => g.numPlays === 0);
 
       setWrappedData({
         username,
@@ -144,8 +150,12 @@ const App = () => {
         personality,
         avgWeight,
         avgPlaytime,
+        avgBGGRating,
+        crownJewel,
         comfortGame,
         hiddenGem,
+        shelfOfShame: shelfOfShame.length,
+        hasRatings: ratedGames.length > 0,
         year: new Date().getFullYear()
       });
       
@@ -159,6 +169,7 @@ const App = () => {
   };
 
   const slides = wrappedData ? [
+    // Cover slide
     <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 text-white p-8">
       <div className="text-6xl mb-4">🎲</div>
       <h1 className="text-5xl font-bold mb-2 text-center">Board Game</h1>
@@ -166,6 +177,7 @@ const App = () => {
       <p className="text-2xl opacity-90">@{wrappedData.username}</p>
     </div>,
 
+    // Stats slide
     <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-500 text-white p-8">
       <h2 className="text-4xl font-bold mb-12">Your Year at the Table</h2>
       <div className="space-y-6 w-full max-w-md">
@@ -175,7 +187,7 @@ const App = () => {
         </div>
         <div className="bg-white/20 rounded-lg p-6 backdrop-blur">
           <div className="text-5xl font-bold">{wrappedData.ratedGames}</div>
-          <div className="text-xl opacity-90">games rated</div>
+          <div className="text-xl opacity-90">games rated by you</div>
         </div>
         <div className="bg-white/20 rounded-lg p-6 backdrop-blur">
           <div className="text-5xl font-bold">{wrappedData.wishlistGames}</div>
@@ -184,6 +196,7 @@ const App = () => {
       </div>
     </div>,
 
+    // Personality slide
     <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-600 text-white p-8">
       <div className="text-8xl mb-6">{wrappedData.personality.emoji}</div>
       <h2 className="text-5xl font-bold mb-6 text-center">{wrappedData.personality.type}</h2>
@@ -192,7 +205,8 @@ const App = () => {
       </p>
     </div>,
 
-    wrappedData.topGames.length > 0 && (
+    // FOR RATERS: Top Rated Games
+    wrappedData.hasRatings && wrappedData.topGames.length > 0 && (
       <div className="h-full flex flex-col justify-center bg-gradient-to-br from-emerald-600 to-teal-600 text-white p-8">
         <h2 className="text-4xl font-bold mb-8 text-center">Your Highest Rated Games</h2>
         <div className="space-y-4 max-w-lg mx-auto w-full">
@@ -201,7 +215,7 @@ const App = () => {
               <div className="text-3xl font-bold opacity-60">#{i + 1}</div>
               <div className="flex-1">
                 <div className="font-semibold text-lg">{game.name}</div>
-                <div className="opacity-80">Rating: {game.rating.toFixed(1)}/10</div>
+                <div className="opacity-80">Your rating: {game.rating.toFixed(1)}/10</div>
               </div>
             </div>
           ))}
@@ -209,7 +223,47 @@ const App = () => {
       </div>
     ),
 
-    wrappedData.comfortGame && (
+    // FOR NON-RATERS: Crown Jewel (highest BGG-rated game they own)
+    !wrappedData.hasRatings && wrappedData.crownJewel && (
+      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-yellow-600 to-amber-600 text-white p-8">
+        <h2 className="text-4xl font-bold mb-8 text-center">Your Crown Jewel</h2>
+        <div className="bg-white/20 rounded-2xl p-8 backdrop-blur max-w-md">
+          <div className="text-6xl mb-4 text-center">👑</div>
+          <h3 className="text-3xl font-bold mb-4 text-center">{wrappedData.crownJewel.name}</h3>
+          <p className="text-lg text-center opacity-90 mb-4">
+            The most acclaimed game on your shelf.
+          </p>
+          <div className="text-center">
+            <span className="text-4xl font-bold">{wrappedData.crownJewel.bggRating.toFixed(1)}</span>
+            <span className="text-xl opacity-75">/10 on BGG</span>
+          </div>
+        </div>
+      </div>
+    ),
+
+    // FOR NON-RATERS: Collection Quality
+    !wrappedData.hasRatings && wrappedData.avgBGGRating > 0 && (
+      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-600 to-teal-600 text-white p-8">
+        <h2 className="text-4xl font-bold mb-8 text-center">Your Collection's Quality</h2>
+        <div className="bg-white/20 rounded-2xl p-8 backdrop-blur max-w-md text-center">
+          <div className="text-6xl mb-4">⭐</div>
+          <div className="mb-6">
+            <div className="text-6xl font-bold mb-2">{wrappedData.avgBGGRating.toFixed(1)}</div>
+            <div className="text-xl opacity-90">average BGG rating</div>
+          </div>
+          <p className="text-lg opacity-90">
+            {wrappedData.avgBGGRating >= 7.5 
+              ? "Your collection is packed with highly-rated games. You have excellent taste!"
+              : wrappedData.avgBGGRating >= 6.5
+              ? "You've built a solid collection of well-regarded games."
+              : "You collect games that speak to you, ratings be damned."}
+          </p>
+        </div>
+      </div>
+    ),
+
+    // FOR RATERS: Comfort Game
+    wrappedData.hasRatings && wrappedData.comfortGame && (
       <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-600 to-orange-600 text-white p-8">
         <h2 className="text-4xl font-bold mb-8 text-center">Your Comfort Game</h2>
         <div className="bg-white/20 rounded-2xl p-8 backdrop-blur max-w-md">
@@ -224,7 +278,8 @@ const App = () => {
       </div>
     ),
 
-    wrappedData.hiddenGem && (
+    // FOR RATERS: Hidden Gem
+    wrappedData.hasRatings && wrappedData.hiddenGem && (
       <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white p-8">
         <h2 className="text-4xl font-bold mb-8 text-center">Your Hidden Gem</h2>
         <div className="bg-white/20 rounded-2xl p-8 backdrop-blur max-w-md">
@@ -237,6 +292,28 @@ const App = () => {
       </div>
     ),
 
+    // FOR NON-RATERS: Shelf of Shame
+    !wrappedData.hasRatings && wrappedData.shelfOfShame > 0 && (
+      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-purple-600 to-pink-600 text-white p-8">
+        <h2 className="text-4xl font-bold mb-8 text-center">Stories Waiting to Be Told</h2>
+        <div className="bg-white/20 rounded-2xl p-8 backdrop-blur max-w-md text-center">
+          <div className="text-6xl mb-4">📚</div>
+          <div className="mb-6">
+            <div className="text-6xl font-bold mb-2">{wrappedData.shelfOfShame}</div>
+            <div className="text-xl opacity-90">unplayed games</div>
+          </div>
+          <p className="text-lg opacity-90">
+            {wrappedData.shelfOfShame > 50 
+              ? "That's a lot of potential! Every game is a story waiting to unfold."
+              : wrappedData.shelfOfShame > 20
+              ? "Some of the best experiences are still ahead of you."
+              : "Not bad! You're getting your games to the table."}
+          </p>
+        </div>
+      </div>
+    ),
+
+    // Complexity Profile (works for everyone)
     wrappedData.avgWeight > 0 && (
       <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 text-white p-8">
         <h2 className="text-4xl font-bold mb-8 text-center">Your Complexity Profile</h2>
@@ -265,11 +342,14 @@ const App = () => {
       </div>
     ),
 
+    // Closing slide
     <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-rose-600 to-pink-600 text-white p-8">
       <div className="text-7xl mb-6">🎲</div>
       <h2 className="text-4xl font-bold mb-4 text-center">That's Your {wrappedData.year}</h2>
       <p className="text-xl text-center max-w-md opacity-90 mb-8">
-        Every game, every rating, every choice tells your story as a board gamer.
+        {wrappedData.hasRatings 
+          ? "Every game, every rating, every choice tells your story as a board gamer."
+          : `${wrappedData.totalGames} games, endless possibilities. Your collection is a world waiting to be explored.`}
       </p>
       <div className="text-sm opacity-75">
         Powered by BoardGameGeek
@@ -324,8 +404,7 @@ const App = () => {
             )}
             
             <div className="text-xs text-gray-500 text-center space-y-1">
-              <p>This tool uses your public BGG collection data.</p>
-              <p>Try usernames like: <strong>Hipopotam</strong>, <strong>Ronfar</strong>, or <strong>whovian223</strong></p>
+              <p>Works with any BGG collection - ratings optional!</p>
               <p className="mt-2 text-gray-400">Non-commercial use only. Powered by BoardGameGeek.</p>
             </div>
           </div>
