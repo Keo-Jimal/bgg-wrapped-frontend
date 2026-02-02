@@ -55,40 +55,38 @@ const App = () => {
   };
 
   const fetchBGGData = async (retryCount = 0) => {
-  if (!username.trim()) {
-    setError('Please enter a BGG username');
-    return;
-  }
-
-  setLoading(true);
-  setError('');
-
-  try {
-    const collectionResponse = await fetch(
-      `https://bgg-wrapped-backend.vercel.app/api/bgg-proxy?username=${encodeURIComponent(username)}`
-    );
-    
-    if (!collectionResponse.ok) {
-      throw new Error('Failed to fetch collection data. Make sure the username is correct and the collection is public.');
+    if (!username.trim()) {
+      setError('Please enter a BGG username');
+      return;
     }
 
-    const collectionXML = await collectionResponse.text();
-    
-    // Check if BGG is still processing
-    if (collectionXML.includes('Your request for this collection has been accepted')) {
-      if (retryCount < 4) {
-        // Auto-retry after 3 seconds
-        setTimeout(() => {
-          fetchBGGData(retryCount + 1);
-        }, 3000);
-        return; // Keep loading state
-      } else {
-        // After 4 retries (12 seconds), give up
-        throw new Error('BGG is taking longer than expected. Please try again in a minute.');
+    setLoading(true);
+    setError('');
+
+    try {
+      const collectionResponse = await fetch(
+        `https://bgg-wrapped-backend.vercel.app/api/bgg-proxy?username=${encodeURIComponent(username)}`
+      );
+      
+      if (!collectionResponse.ok) {
+        throw new Error('Failed to fetch collection data. Make sure the username is correct and the collection is public.');
       }
-    }
 
-    // ... rest of your existing code (parsing, etc.)
+      const collectionXML = await collectionResponse.text();
+      
+      // Check if BGG is still processing - auto-retry
+      if (collectionXML.includes('Your request for this collection has been accepted')) {
+        if (retryCount < 4) {
+          // Auto-retry after 3 seconds (up to 4 times = 12 seconds total)
+          setTimeout(() => {
+            fetchBGGData(retryCount + 1);
+          }, 3000);
+          return; // Keep loading state active
+        } else {
+          // After 4 retries, give up
+          throw new Error('BGG is taking longer than expected to process your collection. Please try again in a minute.');
+        }
+      }
 
       const collectionDoc = parseXML(collectionXML);
       
@@ -100,13 +98,15 @@ const App = () => {
       const items = Array.from(collectionDoc.querySelectorAll('item'));
       
       if (items.length === 0) {
-        setError('No games found in collection. Make sure your collection is public.');
+        setError('No games found in collection. Make sure your collection is public and has games in it.');
         setLoading(false);
         return;
       }
 
       const games = items.map(item => {
         const status = item.querySelector('status');
+        const stats = item.querySelector('stats');
+        
         return {
           name: item.querySelector('name')?.textContent || 'Unknown',
           year: parseInt(item.querySelector('yearpublished')?.textContent) || 0,
@@ -115,10 +115,11 @@ const App = () => {
           wishlist: status?.getAttribute('wishlist') === '1',
           wishlistPriority: parseInt(status?.getAttribute('wishlistpriority')) || 0,
           numPlays: parseInt(item.querySelector('numplays')?.textContent) || 0,
-          weight: parseFloat(item.querySelector('stats ratings averageweight')?.textContent) || 0,
-          minPlayers: parseInt(item.querySelector('stats minplayers')?.textContent) || 0,
-          maxPlayers: parseInt(item.querySelector('stats maxplayers')?.textContent) || 0,
-          playTime: parseInt(item.querySelector('stats playingtime')?.textContent) || 0,
+          // Get weight from BGG's community rating (averageweight)
+          weight: parseFloat(stats?.querySelector('averageweight')?.textContent) || 0,
+          minPlayers: parseInt(stats?.querySelector('minplayers')?.textContent) || 0,
+          maxPlayers: parseInt(stats?.querySelector('maxplayers')?.textContent) || 0,
+          playTime: parseInt(stats?.querySelector('playingtime')?.textContent) || 0,
         };
       });
 
@@ -191,20 +192,22 @@ const App = () => {
       </p>
     </div>,
 
-    <div className="h-full flex flex-col justify-center bg-gradient-to-br from-emerald-600 to-teal-600 text-white p-8">
-      <h2 className="text-4xl font-bold mb-8 text-center">Your Highest Rated Games</h2>
-      <div className="space-y-4 max-w-lg mx-auto w-full">
-        {wrappedData.topGames.slice(0, 5).map((game, i) => (
-          <div key={i} className="bg-white/20 rounded-lg p-4 backdrop-blur flex items-center gap-4">
-            <div className="text-3xl font-bold opacity-60">#{i + 1}</div>
-            <div className="flex-1">
-              <div className="font-semibold text-lg">{game.name}</div>
-              <div className="opacity-80">Rating: {game.rating.toFixed(1)}/10</div>
+    wrappedData.topGames.length > 0 && (
+      <div className="h-full flex flex-col justify-center bg-gradient-to-br from-emerald-600 to-teal-600 text-white p-8">
+        <h2 className="text-4xl font-bold mb-8 text-center">Your Highest Rated Games</h2>
+        <div className="space-y-4 max-w-lg mx-auto w-full">
+          {wrappedData.topGames.slice(0, 5).map((game, i) => (
+            <div key={i} className="bg-white/20 rounded-lg p-4 backdrop-blur flex items-center gap-4">
+              <div className="text-3xl font-bold opacity-60">#{i + 1}</div>
+              <div className="flex-1">
+                <div className="font-semibold text-lg">{game.name}</div>
+                <div className="opacity-80">Rating: {game.rating.toFixed(1)}/10</div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>,
+    ),
 
     wrappedData.comfortGame && (
       <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-600 to-orange-600 text-white p-8">
@@ -234,31 +237,33 @@ const App = () => {
       </div>
     ),
 
-    <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 text-white p-8">
-      <h2 className="text-4xl font-bold mb-8 text-center">Your Complexity Profile</h2>
-      <div className="w-full max-w-md">
-        <div className="bg-white/10 rounded-full h-8 mb-6 overflow-hidden">
-          <div 
-            className="bg-gradient-to-r from-green-400 to-red-500 h-full transition-all duration-1000"
-            style={{ width: `${(wrappedData.avgWeight / 5) * 100}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-sm opacity-75 mb-8">
-          <span>Light</span>
-          <span>Heavy</span>
-        </div>
-        <div className="bg-white/20 rounded-lg p-6 backdrop-blur text-center">
-          <div className="text-5xl font-bold mb-2">{wrappedData.avgWeight.toFixed(1)}</div>
-          <div className="text-xl opacity-90">average complexity</div>
-          <p className="mt-4 text-sm opacity-75">
-            {wrappedData.avgWeight < 2 ? "You keep things accessible and fun." :
-             wrappedData.avgWeight < 3 ? "You balance depth with accessibility." :
-             wrappedData.avgWeight < 4 ? "You enjoy games with real strategic weight." :
-             "You thrive on complexity and deep strategy."}
-          </p>
+    wrappedData.avgWeight > 0 && (
+      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 text-white p-8">
+        <h2 className="text-4xl font-bold mb-8 text-center">Your Complexity Profile</h2>
+        <div className="w-full max-w-md">
+          <div className="bg-white/10 rounded-full h-8 mb-6 overflow-hidden">
+            <div 
+              className="bg-gradient-to-r from-green-400 to-red-500 h-full transition-all duration-1000"
+              style={{ width: `${(wrappedData.avgWeight / 5) * 100}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-sm opacity-75 mb-8">
+            <span>Light</span>
+            <span>Heavy</span>
+          </div>
+          <div className="bg-white/20 rounded-lg p-6 backdrop-blur text-center">
+            <div className="text-5xl font-bold mb-2">{wrappedData.avgWeight.toFixed(1)}</div>
+            <div className="text-xl opacity-90">average complexity</div>
+            <p className="mt-4 text-sm opacity-75">
+              {wrappedData.avgWeight < 2 ? "You keep things accessible and fun." :
+               wrappedData.avgWeight < 3 ? "You balance depth with accessibility." :
+               wrappedData.avgWeight < 4 ? "You enjoy games with real strategic weight." :
+               "You thrive on complexity and deep strategy."}
+            </p>
+          </div>
         </div>
       </div>
-    </div>,
+    ),
 
     <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-rose-600 to-pink-600 text-white p-8">
       <div className="text-7xl mb-6">🎲</div>
@@ -300,7 +305,7 @@ const App = () => {
               placeholder="Enter your BGG username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && fetchBGGData()}
+              onKeyPress={(e) => e.key === 'Enter' && fetchBGGData(0)}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-800"
             />
             
@@ -368,5 +373,3 @@ const App = () => {
 };
 
 export default App;
-
-
