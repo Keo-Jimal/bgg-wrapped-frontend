@@ -305,11 +305,11 @@ const App = () => {
             />
             
             <button
-              onClick={fetchBGGData}
+              onClick={() => fetchBGGData(0)}
               disabled={loading}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Loading...' : 'Generate My Wrapped'}
+              {loading ? 'Analyzing your collection...' : 'Generate My Wrapped'}
             </button>
             
             {error && (
@@ -368,4 +368,5 @@ const App = () => {
 };
 
 export default App;
+
 
