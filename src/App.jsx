@@ -19,8 +19,6 @@ const App = () => {
     const ownedCount = games.filter(g => g.owned).length;
     const ratedCount = games.filter(g => g.rating > 0).length;
     
-    const avgWeight = games.filter(g => g.weight > 0).reduce((sum, g) => sum + g.weight, 0) / games.filter(g => g.weight > 0).length || 0;
-    
     if (wishlistCount > ownedCount * 0.5) {
       return {
         type: "The Dreamer",
@@ -32,12 +30,6 @@ const App = () => {
         type: "The Curator",
         description: "You know what you love. Your collection isn't about quantity—it's about quality, intention, and games that earn their place on your shelf. Every rating is a deliberate choice.",
         emoji: "🎯"
-      };
-    } else if (avgWeight > 3.5) {
-      return {
-        type: "The Strategist",
-        description: "You're drawn to depth, complexity, and games that reward mastery. Light fillers have their place, but you come alive when there's real weight on the table.",
-        emoji: "🧠"
       };
     } else if (ownedCount > 100) {
       return {
@@ -93,18 +85,6 @@ const App = () => {
       }
 
       const items = Array.from(collectionDoc.querySelectorAll('item'));
-
-      // DEBUG: Log first game's XML structure
-if (items.length > 0) {
-  const firstItem = items[0];
-  console.log('First game name:', firstItem.querySelector('name')?.textContent);
-  const stats = firstItem.querySelector('stats');
-  console.log('Stats innerHTML:', stats?.innerHTML);
-  const rating = stats?.querySelector('rating');
-  console.log('average value attr:', rating?.querySelector('average')?.getAttribute('value'));
-  console.log('averageweight in stats:', stats?.querySelector('averageweight'));
-  console.log('averageweight value:', stats?.querySelector('averageweight')?.getAttribute('value'));
-}
       
       if (items.length === 0) {
         setError('No games found in collection. Make sure your collection is public and has games in it.');
@@ -121,15 +101,14 @@ if (items.length > 0) {
           name: item.querySelector('name')?.textContent || 'Unknown',
           year: parseInt(item.querySelector('yearpublished')?.textContent) || 0,
           rating: parseFloat(item.querySelector('rating')?.textContent) || 0,
-          bggRating: parseFloat(rating?.querySelector('average')?.textContent) || 0,
+          bggRating: parseFloat(rating?.querySelector('average')?.getAttribute('value')) || 0,
           owned: status?.getAttribute('own') === '1',
           wishlist: status?.getAttribute('wishlist') === '1',
           wishlistPriority: parseInt(status?.getAttribute('wishlistpriority')) || 0,
           numPlays: parseInt(item.querySelector('numplays')?.textContent) || 0,
-          weight: parseFloat(rating?.querySelector('averageweight')?.textContent) || 0,
           minPlayers: parseInt(stats?.querySelector('minplayers')?.textContent) || 0,
           maxPlayers: parseInt(stats?.querySelector('maxplayers')?.textContent) || 0,
-          playTime: parseInt(stats?.querySelector('playingtime')?.textContent) || 0,
+          playTime: parseInt(stats?.getAttribute('playingtime')) || 0,
         };
       });
 
@@ -138,7 +117,6 @@ if (items.length > 0) {
       const topGames = ratedGames.slice(0, 5);
       const personality = calculatePersonality(games);
       
-      const avgWeight = games.filter(g => g.weight > 0).reduce((sum, g) => sum + g.weight, 0) / games.filter(g => g.weight > 0).length || 0;
       const avgPlaytime = games.filter(g => g.playTime > 0).reduce((sum, g) => sum + g.playTime, 0) / games.filter(g => g.playTime > 0).length || 0;
       
       // For non-raters: use BGG community ratings
@@ -147,7 +125,7 @@ if (items.length > 0) {
       const crownJewel = ownedWithBGGRating.sort((a, b) => b.bggRating - a.bggRating)[0];
       
       const comfortGame = ratedGames.find(g => g.numPlays > 3) || ratedGames[0];
-      const hiddenGem = ratedGames.find(g => g.rating >= 8 && g.weight > 3.0);
+      const hiddenGem = ratedGames.find(g => g.rating >= 8 && g.bggRating < 7.5);
       
       // Shelf of Shame: owned games with 0 plays
       const shelfOfShame = ownedGames.filter(g => g.numPlays === 0);
@@ -160,7 +138,6 @@ if (items.length > 0) {
         ratedGames: ratedGames.length,
         topGames,
         personality,
-        avgWeight,
         avgPlaytime,
         avgBGGRating,
         crownJewel,
@@ -179,8 +156,6 @@ if (items.length > 0) {
       setLoading(false);
     }
   };
-
-  
   
   const slides = wrappedData ? [
     // Cover slide
@@ -207,18 +182,6 @@ if (items.length > 0) {
           <div className="text-5xl font-bold">{wrappedData.wishlistGames}</div>
           <div className="text-xl opacity-90">games dreaming about</div>
         </div>
-      </div>
-    </div>,
-
-      // DEBUG SLIDE - Shows what data we have
-    <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-700 to-gray-900 text-white p-8">
-      <h2 className="text-3xl font-bold mb-8">Debug Info</h2>
-      <div className="text-left space-y-2 text-sm max-w-md bg-white/10 p-4 rounded">
-        <p>avgWeight: {wrappedData.avgWeight || 'null'}</p>
-        <p>avgBGGRating: {wrappedData.avgBGGRating || 'null'}</p>
-        <p>crownJewel: {wrappedData.crownJewel?.name || 'null'}</p>
-        <p>hasRatings: {wrappedData.hasRatings ? 'true' : 'false'}</p>
-        <p>shelfOfShame: {wrappedData.shelfOfShame || 'null'}</p>
       </div>
     </div>,
     
@@ -312,7 +275,7 @@ if (items.length > 0) {
           <div className="text-6xl mb-4 text-center">💎</div>
           <h3 className="text-3xl font-bold mb-4 text-center">{wrappedData.hiddenGem.name}</h3>
           <p className="text-lg text-center opacity-90">
-            Not everyone gets this one, but you do. Rated {wrappedData.hiddenGem.rating.toFixed(1)}/10.
+            You rated it {wrappedData.hiddenGem.rating.toFixed(1)}/10, but the community rates it {wrappedData.hiddenGem.bggRating.toFixed(1)}/10. You see something special others might miss.
           </p>
         </div>
       </div>
@@ -335,35 +298,6 @@ if (items.length > 0) {
               ? "Some of the best experiences are still ahead of you."
               : "Not bad! You're getting your games to the table."}
           </p>
-        </div>
-      </div>
-    ),
-
-    // Complexity Profile (works for everyone)
-    wrappedData.avgWeight > 0 && (
-      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900 text-white p-8">
-        <h2 className="text-4xl font-bold mb-8 text-center">Your Complexity Profile</h2>
-        <div className="w-full max-w-md">
-          <div className="bg-white/10 rounded-full h-8 mb-6 overflow-hidden">
-            <div 
-              className="bg-gradient-to-r from-green-400 to-red-500 h-full transition-all duration-1000"
-              style={{ width: `${(wrappedData.avgWeight / 5) * 100}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-sm opacity-75 mb-8">
-            <span>Light</span>
-            <span>Heavy</span>
-          </div>
-          <div className="bg-white/20 rounded-lg p-6 backdrop-blur text-center">
-            <div className="text-5xl font-bold mb-2">{wrappedData.avgWeight.toFixed(1)}</div>
-            <div className="text-xl opacity-90">average complexity</div>
-            <p className="mt-4 text-sm opacity-75">
-              {wrappedData.avgWeight < 2 ? "You keep things accessible and fun." :
-               wrappedData.avgWeight < 3 ? "You balance depth with accessibility." :
-               wrappedData.avgWeight < 4 ? "You enjoy games with real strategic weight." :
-               "You thrive on complexity and deep strategy."}
-            </p>
-          </div>
         </div>
       </div>
     ),
@@ -478,9 +412,3 @@ if (items.length > 0) {
 };
 
 export default App;
-
-
-
-
-
-
