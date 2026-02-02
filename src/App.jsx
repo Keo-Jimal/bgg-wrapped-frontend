@@ -86,8 +86,6 @@ const App = () => {
 
       const items = Array.from(collectionDoc.querySelectorAll('item'));
 
-      const items = Array.from(collectionDoc.querySelectorAll('item'));
-
       // DEBUG: Log COMPLETE structure of first game
       if (items.length > 0) {
         const firstItem = items[0];
@@ -436,5 +434,6 @@ const App = () => {
 };
 
 export default App;
+
 
 
