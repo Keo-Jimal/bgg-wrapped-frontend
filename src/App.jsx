@@ -85,6 +85,30 @@ const App = () => {
       }
 
       const items = Array.from(collectionDoc.querySelectorAll('item'));
+
+      const items = Array.from(collectionDoc.querySelectorAll('item'));
+
+// DEBUG: Log COMPLETE structure of first game
+if (items.length > 0) {
+  const firstItem = items[0];
+  console.log('===== FULL ITEM XML =====');
+  console.log(firstItem.outerHTML);
+  console.log('===== ALL ATTRIBUTES =====');
+  console.log('objecttype:', firstItem.getAttribute('objecttype'));
+  console.log('objectid:', firstItem.getAttribute('objectid'));
+  console.log('subtype:', firstItem.getAttribute('subtype'));
+  console.log('collid:', firstItem.getAttribute('collid'));
+  
+  // Log status attributes
+  const status = firstItem.querySelector('status');
+  console.log('===== STATUS =====');
+  console.log('Status attributes:', Array.from(status.attributes).map(a => `${a.name}: ${a.value}`));
+  
+  // Log all timestamps
+  console.log('===== TIMESTAMPS =====');
+  console.log('lastmodified:', status?.getAttribute('lastmodified'));
+}
+
       
       if (items.length === 0) {
         setError('No games found in collection. Make sure your collection is public and has games in it.');
@@ -412,3 +436,4 @@ const App = () => {
 };
 
 export default App;
+
