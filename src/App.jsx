@@ -95,16 +95,21 @@ const App = () => {
       const items = Array.from(collectionDoc.querySelectorAll('item'));
 
       // DEBUG: Log first game's XML structure
-      if (items.length > 0) {
-        const firstItem = items[0];
-        console.log('First game name:', firstItem.querySelector('name')?.textContent);
-        console.log('Stats element:', firstItem.querySelector('stats'));
-        console.log('Rating element:', firstItem.querySelector('stats rating'));
-        console.log('Average (BGG rating):', firstItem.querySelector('stats rating average')?.textContent);
-        console.log('Averageweight:', firstItem.querySelector('stats rating averageweight')?.textContent);
-        console.log('Ratings element:', firstItem.querySelector('stats ratings'));
-        console.log('Averageweight v2:', firstItem.querySelector('stats ratings averageweight')?.textContent);
-      }
+if (items.length > 0) {
+  const firstItem = items[0];
+  console.log('First game name:', firstItem.querySelector('name')?.textContent);
+  const stats = firstItem.querySelector('stats');
+  console.log('Stats element:', stats);
+  const rating = stats?.querySelector('rating');
+  console.log('Rating element:', rating);
+  console.log('Rating innerHTML:', rating?.innerHTML);
+  
+  // Try different paths
+  console.log('average element:', rating?.querySelector('average'));
+  console.log('average value attr:', rating?.querySelector('average')?.getAttribute('value'));
+  console.log('averageweight element:', rating?.querySelector('averageweight'));
+  console.log('averageweight value attr:', rating?.querySelector('averageweight')?.getAttribute('value'));
+}
       
       if (items.length === 0) {
         setError('No games found in collection. Make sure your collection is public and has games in it.');
@@ -478,6 +483,7 @@ const App = () => {
 };
 
 export default App;
+
 
 
 
